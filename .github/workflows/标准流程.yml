@@ -1,0 +1,83 @@
+name: CI  # 标准Node项目CI
+
+on:  # 触发器(沿用你原有的)
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:  # 并发控制(沿用)
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:  # 最小权限(沿用)
+  contents: read
+
+jobs:
+  # ---------- 1. 代码检查(最先跑) ----------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4      # 拉代码(每个job第一步都要)
+      - uses: actions/setup-node@v4    # 装 Node 环境
+        with:
+          node-version: '20'
+          cache: 'npm'                 # 自动缓存依赖,加速
+      - run: npm ci                    # 装项目依赖(需 package-lock.json)
+      - run: npm run lint              # 跑代码检查
+
+  # ---------- 2. 测试(多版本矩阵,等lint通过) ----------
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    needs: lint                        # 等 lint 成功
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false                 # 一个版本失败不取消其他
+      matrix:
+        node-version: [18, 20, 22]     # 3个版本各跑一遍
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test                  # 跑测试
+
+  # ---------- 3. 构建(等测试通过,产出制品) ----------
+  build:
+    name: Build
+    needs: test                        # 等测试全过
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build             # 构建,产出 dist/
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4   # 存档,运行页可下载
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 7
+
+  # ---------- 4. 汇总(总是执行,打印各job结果) ----------
+  report:
+    name: Report
+    needs: [lint, test, build]         # 等前面三个
+    if: always()                       # 不管成败都跑
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "lint=${{ needs.lint.result }}"
+          echo "test=${{ needs.test.result }}"
+          echo "build=${{ needs.build.result }}"
