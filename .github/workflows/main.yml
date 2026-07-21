@@ -29,17 +29,22 @@ permissions:  # permissions 字段:限制这个 workflow 拿到的 GITHUB_TOKEN 
 jobs:  # jobs 字段:定义具体要跑的任务,下面每个缩进块是一个独立 job
   # ---------- 任务 1: 代码检查 ----------
   Hello-World:  # 这个 job 的 id 叫 lint(自定义名,其他 job 用 needs 引用它)
-    name: Lint  # name:在 Actions 页面显示的友好名称
+    name: Hello-World  # name:在 Actions 页面显示的友好名称
     runs-on: ubuntu-latest  # runs-on:在 GitHub 提供的最新版 Ubuntu Linux 机器上跑
     timeout-minutes: 15  # 最多跑 15 分钟,超时自动取消(防止卡死烧额度)
     steps:  # steps:这个 job 要按顺序执行的步骤列表
-      - name: 安装 Node.js  # 用官方 action 装 Node,不需要 sudo,版本精确可控
-        uses: actions/setup-node@v4  # workflow 里装 Node 的正确方式(不要用 apt)
-        with:
-          node-version: '18'  # 装哪个版本写哪个:'18' '20' '22' 或精确 '18.19.1'
-
-      - name: 查询 Node 版本  # 验证 node 是否装好
-        run: node -v  # run 执行 shell 命令
-
       - name: Hello-World
         run: echo "Hello, GitHub Actions!"
+
+  nodejs:
+    name: Node
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Node.js安装
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Node.js查询
+        run: node -v
