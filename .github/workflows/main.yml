@@ -1,100 +1,40 @@
 ﻿# ============================================================
-# 主工作流 (main.yml) — 实际执行的工作流
+# 主工作流 (main.yml) - 实际执行的工作流
 # 项目: actions-ops-lab
 # 说明: 这是"干活的"文件,会被 GitHub Actions 实际触发执行。
 #       其余 actions-modules/ 下的文件仅作为本地参考,不参与上传/执行。
 # ============================================================
 
-name: CI
+name: CI  # 这个 workflow 的名字,会显示在 Actions 页面左侧栏
 
-on:
-  push:
-    branches: [main, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-  pull_request:
-    branches: [main]
-  workflow_dispatch: # 允许在 Actions 页面手动触发
+on:  # on 字段:定义"什么时候触发"这个 workflow
+  push:  # 当有人 push 代码到远程仓库时
+    branches: [main, develop]  # 仅 main 和 develop 这两个分支的 push 才触发
+    paths-ignore:  # 但以下路径的文件变更不触发(改文档不浪费 CI 额度)
+      - '**.md'  # 所有 .md 文件(** 匹配任意层级目录)
+      - 'docs/**'  # docs 目录下的所有文件
+  pull_request:  # 当有人提交 Pull Request 时触发
+    branches: [main]  # 仅 PR 的目标分支是 main 时才触发
+  workflow_dispatch: # 允许在 Actions 页面手动点 "Run workflow" 按钮触发(调试用)
 
 # 并发控制: 同一分支的新推送会取消旧的运行
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+concurrency:  # concurrency 字段:控制并发,避免同一任务重复跑浪费额度
+  group: ${{ github.workflow }}-${{ github.ref }}  # 分组键 = workflow名 + 分支名;同组才算"重复"
+  cancel-in-progress: true  # 新运行一启动,就取消同组里还在跑的旧运行
 
 # 最小权限原则: 默认只读
-permissions:
-  contents: read
+permissions:  # permissions 字段:限制这个 workflow 拿到的 GITHUB_TOKEN 权限范围
+  contents: read  # 只给仓库内容"只读"权限(不给写权限,更安全)
 
-jobs:
+jobs:  # jobs 字段:定义具体要跑的任务,下面每个缩进块是一个独立 job
   # ---------- 任务 1: 代码检查 ----------
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: 安装依赖
-        run: npm ci
-
-      - name: 运行 lint
-        run: npm run lint
-
-  # ---------- 任务 2: 测试 (多版本矩阵) ----------
-  test:
-    name: Test (Node ${{ matrix.node-version }})
-    needs: lint
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18, 20, 22]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - run: npm ci
-      - run: npm test
-
-  # ---------- 任务 3: 构建 ----------
-  build:
-    name: Build
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: dist/
-          retention-days: 7
-
-  # ---------- 任务 4: 汇总 (总是执行) ----------
-  report:
-    name: Report
-    needs: [lint, test, build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: 输出汇总
-        run: |
-          echo "lint=${{ needs.lint.result }}"
-          echo "test=${{ needs.test.result }}"
-          echo "build=${{ needs.build.result }}"
+  lint:  # 这个 job 的 id 叫 lint(自定义名,其他 job 用 needs 引用它)
+    name: Lint  # name:在 Actions 页面显示的友好名称
+    runs-on: ubuntu-latest  # runs-on:在 GitHub 提供的最新版 Ubuntu Linux 机器上跑
+    timeout-minutes: 15  # 最多跑 15 分钟,超时自动取消(防止卡死烧额度)
+    steps:  # steps:这个 job 要按顺序执行的步骤列表
+      - name: 安装依赖  # 第三步
+        run: apt install nodejs=18.19.1+dfsg-6ubuntu5 
+      
+      - name: 查询Node
+        run: node -v
