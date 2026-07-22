@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4      # 拉代码(每个job第一步都要)
               # 自动缓存依赖,加速
-      - run: npm ci                    # 装项目依赖(需 package-lock.json)
+      - run: npm install                 # 装项目依赖(需 package-lock.json)
       - run: npm run lint              # 跑代码检查
 
   # ---------- 2. 测试(多版本矩阵,等lint通过) ----------
@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: npm test                  # 跑测试
 
   # ---------- 3. 构建(等测试通过,产出制品) ----------
@@ -60,7 +60,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: npm run build             # 构建,产出 dist/
       - name: 上传构建产物
         uses: actions/upload-artifact@v4   # 存档,运行页可下载
