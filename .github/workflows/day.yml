@@ -27,10 +27,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4      # 拉代码(每个job第一步都要)
-      - uses: actions/setup-node@v4    # 装 Node 环境
-        with:
-          node-version: '20'
-          cache: 'npm'                 # 自动缓存依赖,加速
+              # 自动缓存依赖,加速
       - run: npm ci                    # 装项目依赖(需 package-lock.json)
       - run: npm run lint              # 跑代码检查
 
